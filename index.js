@@ -1,61 +1,49 @@
+require('dotenv').config();
+
 let golos = require('golos-js');
 let math = require('mathjs');
-let parent_url;
+let CronJob = require('cron').CronJob;
 
-const WIF = process.env.WIF_KEY;
+const wif = process.env.WIF_KEY;
 const login = process.env.LOGIN;
 const loto = "golos.loto";
 
-function main() {
-  if (!golos.auth.isWif(WIF)) {
-    return;
-  }
-
-  // once an hour
-  setInterval(() => {
-    // Publish each 3 hours (Moscow time UTC+3)
-    if ((new Date()).getUTCHours() % 3 === 0) {
-      publish();
-    }
-  }, 3600)
+if (!wif || !login) {
+  throw new Error("You should specify WIF_KEY and LOGIN env vars");
 }
 
-function publish() {
-  golos.api.getDiscussionsByBlogAsync({
-    limit: 1,
-    select_authors: [loto]
-  })
-    .then((result) => {
-      if (result[0].author !== loto) {
-        throw new Error("Author incorrect: " + result[0].author);
-      }
-
-      parent_url = result[0].permlink;
-
-      return golos.api.getContentRepliesAsync(loto, parent_url);
-    })
-    .then(function (comments) {
-      console.log('>>> total comments', comments.length);
-
-      comments.forEach((comment) => {
-        if (comment.author === login) {
-          throw new Error('User ' + login + ' has already commented this post');
-        }
-      });
-
-      return golos.broadcast.commentAsync(WIF, loto, parent_url, login, 're-' + parent_url + (+new Date()), '', numbersString(), {})
-    })
-    .then((result) => {
-      console.log('>>> comment', result);
-
-      return golos.broadcast.voteAsync(WIF, login, loto, parent_url, 10000)
-    })
-    .then((result) => {
-      console.log('>>> vote', result);
-    })
-    .catch(function (err) {
-      console.log('>>> error', err);
+async function publish() {
+  try {
+    let result = await golos.api.getDiscussionsByBlogAsync({
+      limit: 1,
+      select_authors: [loto]
     });
+    console.log('>>> author', result[0].author);
+
+    if (result[0].author !== loto) {
+      throw new Error("Author incorrect: " + result[0].author);
+    }
+
+    let parent_url = result[0].permlink;
+
+    let comments = await golos.api.getContentRepliesAsync(loto, parent_url);
+
+    console.log('>>> total comments', comments.length);
+
+    comments.forEach((comment) => {
+      if (comment.author === login) {
+        throw new Error('User ' + login + ' has already commented this post');
+      }
+    });
+
+    result = await golos.broadcast.commentAsync(wif, loto, parent_url, login, 're-' + parent_url + (+new Date()), '', numbersString(), {});
+    console.log('>>> comment', result);
+
+    result = await golos.broadcast.voteAsync(wif, login, loto, parent_url, 10000);
+    console.log('>>> vote', result);
+  } catch (e) {
+    console.log('>>> error', e);
+  }
 }
 
 function numbersString() {
@@ -92,4 +80,16 @@ function numbersArray() {
   });
 }
 
-main();
+(new CronJob({
+  cronTime: '* 11,14,17,20,23 * * *',
+  onTick: function () {
+    console.log(">>> publishing...");
+    (async function () {
+      await publish();
+
+      console.log(">>> publishing done");
+    })();
+  },
+  start: true,
+  timeZone: 'Europe/Moscow',
+})).start();

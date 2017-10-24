@@ -1,0 +1,11 @@
+version: "3"
+
+services:
+  worker:
+    image: chebykin/golos-5x36-bot
+    env_file:
+      - .env
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3

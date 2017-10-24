@@ -81,7 +81,7 @@ function numbersArray() {
 }
 
 (new CronJob({
-  cronTime: '* 11,14,17,20,23 * * *',
+  cronTime: '* 0,12,15,18,21 * * *',
   onTick: function () {
     console.log(">>> publishing...");
     (async function () {

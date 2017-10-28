@@ -85,10 +85,11 @@ function sleep(time) {
 }
 
 (new CronJob({
-  cronTime: '* 0,12,15,18,21 * * *',
+  cronTime: '40,50 11,14,17,20,23 * * *',
   onTick: function () {
     console.log(">>> publishing...");
     (async function () {
+      await sleep(30 * 1000);
       await publish();
 
       console.log(">>> publishing done");

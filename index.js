@@ -80,6 +80,10 @@ function numbersArray() {
   });
 }
 
+function sleep(time) {
+  return new Promise(resolve => setTimeout(resolve, time));
+}
+
 (new CronJob({
   cronTime: '* 0,12,15,18,21 * * *',
   onTick: function () {
